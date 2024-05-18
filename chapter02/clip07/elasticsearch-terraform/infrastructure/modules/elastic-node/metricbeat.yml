@@ -1,0 +1,46 @@
+metricbeat.config.modules:
+  path: $${path.config}/modules.d/*.yml
+  reload.period: 10s
+  reload.enabled: false
+metricbeat.max_start_delay: 10s
+metricbeat.modules:
+  - module: system
+    metricsets:
+      - cpu             # CPU usage
+      - load            # CPU load averages
+      - memory          # Memory usage
+      - network         # Network IO
+      - process         # Per process metrics
+      - process_summary # Process summary
+      - uptime          # System Uptime
+      - socket_summary  # Socket summary
+      #- core           # Per CPU core usage
+      #- diskio         # Disk IO
+      #- filesystem     # File system usage for each mountpoint
+      #- fsstat         # File system summary metrics
+      #- raid           # Raid
+      #- socket         # Sockets and connection info (linux only)
+      #- service        # systemd service information
+    enabled: false
+    period: 10s
+    processes: ['.*']
+    cpu.metrics:  ["percentages","normalized_percentages"]  # The other available option is ticks.
+    core.metrics: ["percentages"]  # The other available option is ticks.
+  - module: elasticsearch
+    xpack.enabled: true
+    metricsets:
+      - cluster_stats
+      - node_stats
+      - index
+      - index_recovery
+      - index_summary
+      - shard
+    period: 10s
+    hosts: ["http://localhost:9200"]
+
+
+output.elasticsearch:
+  hosts: ["${monitoring_elasticsearch_host}"]
+
+logging.to_files: true
+logging.files:

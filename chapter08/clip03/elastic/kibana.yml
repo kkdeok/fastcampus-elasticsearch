@@ -1,0 +1,29 @@
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: kibana
+  namespace: fastcampus
+spec:
+  version: 8.12.2
+  count: 1
+  elasticsearchRef:
+    name: elasticsearch
+  podTemplate:
+    spec:
+      initContainers:
+        - name: sysctl
+          securityContext:
+            privileged: true
+            runAsUser: 0
+          command: [ 'sh', '-c',  'sysctl -w vm.swappiness=1; sysctl -w vm.max_map_count=262144;' ]
+      containers:
+        - name: kibana
+          env:
+            - name: NODE_OPTIONS
+              value: "--max-old-space-size=2048"
+          resources:
+            requests:
+              cpu: 1
+              memory: 2Gi
+            limits:
+              memory: 2Gi

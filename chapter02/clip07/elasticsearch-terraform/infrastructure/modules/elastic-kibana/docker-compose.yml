@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  kibana:
+    image: ${kibana_image}
+    container_name: kibana
+    network_mode: host
+    volumes:
+      - type: bind
+        source: /services/kibana/config/kibana.yml
+        target: /usr/share/kibana/config/kibana.yml
+    restart: on-failure

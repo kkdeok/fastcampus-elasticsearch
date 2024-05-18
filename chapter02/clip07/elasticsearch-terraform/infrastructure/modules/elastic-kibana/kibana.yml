@@ -1,0 +1,6 @@
+server.name: kibana
+server.host: 0.0.0.0
+elasticsearch.hosts:
+  - "${elasticsearch_host}"
+monitoring.ui.elasticsearch.hosts:
+  - "${monitoring_elasticsearch_host}"

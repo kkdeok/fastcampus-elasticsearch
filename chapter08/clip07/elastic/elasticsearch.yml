@@ -1,0 +1,59 @@
+apiVersion: elasticsearch.k8s.elastic.co/v1
+kind: Elasticsearch
+metadata:
+  name: elasticsearch
+  namespace: fastcampus
+spec:
+  version: 8.12.2
+  http:
+    tls:
+      selfSignedCertificate:
+        disabled: true
+  nodeSets:
+    - &NODE_SET
+      name: master
+      count: 3
+      config:
+        node.roles: [ "master", "ingest", "remote_cluster_client" ]
+        bootstrap.memory_lock: true
+        xpack.ml.enabled: false
+      podTemplate:
+        metadata:
+          annotations:
+            traffic.sidecar.istio.io/includeInboundPorts: "*"
+            traffic.sidecar.istio.io/excludeOutboundPorts: "9300"
+            traffic.sidecar.istio.io/excludeInboundPorts: "9300"
+        spec:
+          initContainers:
+            - name: sysctl
+              securityContext:
+                privileged: true
+                runAsUser: 0
+              command: [ 'sh', '-c',  'sysctl -w vm.swappiness=1; sysctl -w vm.max_map_count=262144;' ]
+          containers:
+            - name: elasticsearch
+              resources:
+                requests:
+                  cpu: 1
+                  memory: 2Gi
+                limits:
+                  memory: 2Gi
+              env:
+                - name: ES_JAVA_OPTS
+                  value: -Xms1g -Xmx1g
+      volumeClaimTemplates:
+        - metadata:
+            name: elasticsearch-data
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 5Gi
+            storageClassName: gp2
+    - <<: *NODE_SET
+      name: data
+      config:
+        node.roles: [ "data", "ingest", "remote_cluster_client" ]
+        bootstrap.memory_lock: true
+        xpack.ml.enabled: false

@@ -1,0 +1,12 @@
+.idea
+
+*.terraform
+
+*.hcl
+*.tfstate
+*.tfstate.*
+
+*.DS_Store
+
+
+logs

@@ -1,0 +1,57 @@
+#cloud-config
+timezone: Asia/Seoul
+
+runcmd:
+  # kernel tuning
+  - |
+    echo "kernel tuning" >> /var/run/cloud-init/log
+    swapoff -a
+    sysctl -w vm.max_map_count=262144
+    sysctl -w vm.swappiness=1
+  # setup docker
+  - |
+    echo "setup docker" >> /var/run/cloud-init/log
+    sudo yum update -y
+    sudo yum install docker -y
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    docker --version
+    sudo usermod -a -G docker ec2-user
+  # setup directories
+  - |
+    echo "setup directories" >> /var/run/cloud-init/log
+    mkdir -p /services/kibana
+    mkdir -p /services/kibana/data
+    mkdir -p /services/kibana/logs
+    mkdir -p /services/kibana/config
+    chown -R 1000:0 /kibana
+  # docker-compose up
+  - |
+    echo "install docker-compose" >> /var/run/cloud-init/log
+    sudo curl -L https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+    sudo chmod +x /usr/local/bin/docker-compose
+    docker-compose version
+    echo "docker-compose up" >> /var/run/cloud-init/log
+    docker-compose -f /services/kibana/docker-compose.yml up -d
+write_files:
+  # kernel tuning limit
+  - path: /etc/security/limits.conf
+    content: |
+      *       soft    nofile  65536
+      *       hard    nofile  65536
+      root    soft    nofile  65536
+      root    hard    nofile  65536
+      elasticsearch  -  nofile  65535
+
+      *       soft    nproc  65536
+      *       hard    nproc  65536
+
+      *       soft    memlock unlimited
+      *       hard    memlock unlimited
+    append: true
+  - path: /services/kibana/config/kibana.yml
+    content: |
+      ${kibana_yml}
+  - path: /services/kibana/docker-compose.yml
+    content: |
+      ${docker_compose_yml}

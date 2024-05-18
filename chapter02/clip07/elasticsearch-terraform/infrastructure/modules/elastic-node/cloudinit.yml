@@ -1,0 +1,84 @@
+#cloud-config
+timezone: Asia/Seoul
+
+runcmd:
+  # kernel tuning
+  - |
+    echo "kernel tuning" >> /var/run/cloud-init/log
+    swapoff -a
+    sysctl -w vm.max_map_count=262144
+    sysctl -w vm.swappiness=1
+  # setup docker
+  - |
+    echo "setup docker" >> /var/run/cloud-init/log
+    sudo yum update -y
+    sudo yum install docker -y
+    sudo systemctl start docker
+    sudo systemctl enable docker
+    docker --version
+    sudo usermod -a -G docker ec2-user
+  # setup directories
+  - |
+    echo "setup directories" >> /var/run/cloud-init/log
+    mkdir -p /services/elasticsearch
+    mkdir -p /services/elasticsearch/data
+    mkdir -p /services/elasticsearch/logs
+    mkdir -p /services/elasticsearch/config
+    mkdir -p /services/metricbeat/logs
+    mkdir -p /services/metricbeat/config
+    chown -R 1000:0 /services/elasticsearch
+  # make env INSTANCE_ID
+  - |
+    echo "make env IP " >> /var/run/cloud-init/log
+    export INSTANCE_ID=$(cat /run/cloud-init/instance-data.json | jq -rM '.ds["meta-data"]["instance-id"]')
+    export IP=$(cat /run/cloud-init/instance-data.json | jq -rM '.ds["meta-data"]["local-ipv4"]')
+    sed -i "s/instance_id/$INSTANCE_ID/g" /services/elasticsearch/config/elasticsearch.yml
+  # docker build and run
+  # Dockerfile 은 도커 빌드 후 허브에 올린다음 pull 해서 사용하는 것이 일반적인 사용 방법이지만,
+  # 여기서는 실습의 편의를 위해 각 서버 내에서 build 합니다.
+  - |
+    echo "docker build and run" >> /var/run/cloud-init/log
+    cd /services/elasticsearch && docker build . -t fastcampus-elasticsearch:8.12.2
+    docker run -d --name elasticsearch --net host -m 1536MB \
+      -v /services/elasticsearch/logs:/usr/share/elasticsearch/logs \
+      -v /services/elasticsearch/data:/usr/share/elasticsearch/data \
+      -v /services/elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml \
+      -e "ES_JAVA_OPTS=-Xms768m -Xmx768m" \
+      fastcampus-elasticsearch:8.12.2
+  # run metricbeat
+  - |
+    echo "run metricbeat : ${metricbeat_image}" >> /var/run/cloud-init/log
+    chown root:root /services/metricbeat/config/metricbeat.yml
+    docker run -d --name metricbeat --net host --user root \
+      -v /var/run/docker.sock:/var/run/docker.sock:ro \
+      -v /sys/fs/cgroup/:/hostfs/sys/fs/cgroup:ro \
+      -v /proc/:/hostfs/proc/:ro \
+      -v /:/hostfs:ro \
+      -v /services/metricbeat/config/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml \
+      -v /services/metricbeat/logs:/usr/share/metricbeat/logs \
+      ${metricbeat_image}
+write_files:
+  # kernel tuning limit
+  - path: /etc/security/limits.conf
+    content: |
+      *       soft    nofile  65536
+      *       hard    nofile  65536
+      root    soft    nofile  65536
+      root    hard    nofile  65536
+      elasticsearch  -  nofile  65535
+
+      *       soft    nproc  65536
+      *       hard    nproc  65536
+
+      *       soft    memlock unlimited
+      *       hard    memlock unlimited
+    append: true
+  - path: /services/elasticsearch/config/elasticsearch.yml
+    content: |
+      ${elasticsearch_yml}
+  - path: /services/elasticsearch/Dockerfile
+    content: |
+      ${dockerfile}
+  - path: /services/metricbeat/config/metricbeat.yml
+    content: |
+      ${metricbeat_yml}

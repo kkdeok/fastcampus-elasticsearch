@@ -1,0 +1,8 @@
+[submodule "chapter04/clip04"]
+	path = chapter04/clip04
+	url = git@github.com:kkdeok/xk6-output-elasticsearch.git
+	branch = fastcampus-elasticsearch/chapter04/clip04
+[submodule "chapter08/clip03/terraform-provision-eks-cluster"]
+	path = chapter08/clip03/terraform-provision-eks-cluster
+	url = git@github.com:kkdeok/learn-terraform-provision-eks-cluster.git
+	branch = fastcampus-elasticsearch/chapter08/clip03

@@ -1,0 +1,23 @@
+cluster.name: ${cluster_name}
+cluster.initial_master_nodes: ["${initial_master_node}"]
+
+node.name: node-${role}-instance_id
+node.roles: ["${role}","remote_cluster_client"]
+
+network.host: _ec2_, _local_
+network.publish_host: _ec2_
+http.port: 9200
+
+bootstrap.memory_lock: true
+
+xpack.security.enabled: false
+
+discovery.seed_providers: ec2
+discovery.ec2.host_type: private_ip
+discovery.ec2.endpoint: ec2.ap-northeast-2.amazonaws.com
+discovery.ec2.groups: ${sg_name}
+discovery.ec2.any_group: false
+discovery.ec2.tag.Cluster: ${cluster_name}
+
+path.data: /usr/share/elasticsearch/data
+path.logs: /usr/share/elasticsearch/logs
